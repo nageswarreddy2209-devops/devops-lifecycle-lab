@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.oci/
+.kube/
+*secret*.yaml
+*secret*.json
+.DS_Store

@@ -1,0 +1,36 @@
+version: 0.1
+component: build
+timeoutInSeconds: 600
+shell: bash
+failImmediatelyOnError: true
+env:
+  exportedVariables:
+    - IMAGE_TAG
+steps:
+  - type: Command
+    name: Validate Python source
+    command: |
+      python3 -m py_compile app.py
+  - type: Command
+    name: Build and test image
+    command: |
+      : "${REGISTRY_HOST:?Set REGISTRY_HOST, e.g. iad.ocir.io}"
+      : "${REGISTRY_NAMESPACE:?Set your OCIR namespace}"
+      IMAGE_TAG="${OCI_PRIMARY_SOURCE_COMMIT_HASH:?Missing source commit}"
+      export IMAGE_TAG
+      IMAGE_URI="${REGISTRY_HOST}/${REGISTRY_NAMESPACE}/flask-devops-app:${IMAGE_TAG}"
+      docker build -t "$IMAGE_URI" .
+      docker run --rm -v "$PWD/tests:/app/tests:ro" "$IMAGE_URI" python -m unittest discover -s tests -v
+  - type: Command
+    name: Push image to OCIR
+    command: |
+      : "${REGISTRY_USERNAME:?Set your full OCIR username}"
+      : "${REGISTRY_TOKEN:?Supply a token securely at runtime}"
+      : "${IMAGE_TAG:?Missing image tag}"
+      IMAGE_URI="${REGISTRY_HOST}/${REGISTRY_NAMESPACE}/flask-devops-app:${IMAGE_TAG}"
+      printf '%s\n' "$REGISTRY_TOKEN" | docker login "$REGISTRY_HOST" --username "$REGISTRY_USERNAME" --password-stdin
+      docker push "$IMAGE_URI"
+outputArtifacts:
+  - name: flask-app-image
+    type: DOCKER_IMAGE
+    location: ${REGISTRY_HOST}/${REGISTRY_NAMESPACE}/flask-devops-app:${IMAGE_TAG}
